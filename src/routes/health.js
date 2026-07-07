@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { healthCheck: dbHealthCheck } = require('../database/connection');
 const Contact = require('../models/Contact');
 
 /**
@@ -7,29 +8,42 @@ const Contact = require('../models/Contact');
  * @desc Health check endpoint
  * @access Public
  */
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
+    // Check database health
+    const dbHealth = await dbHealthCheck();
+    
+    // Get contact count for additional health indicator
+    const contactCount = await Contact.count();
+    
     // Basic health check - server is running
     const healthStatus = {
-      status: 'healthy',
+      status: dbHealth.healthy ? 'healthy' : 'unhealthy',
       timestamp: new Date().toISOString(),
       service: 'contact-book-api',
       version: '1.0.0',
       environment: process.env.NODE_ENV || 'development',
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      // Add contact count for additional health indicator
-      contacts: Contact.count()
+      database: {
+        connected: dbHealth.healthy,
+        message: dbHealth.message,
+        contactCount: contactCount
+      }
     };
     
-    res.status(200).json(healthStatus);
+    res.status(dbHealth.healthy ? 200 : 503).json(healthStatus);
   } catch (error) {
     console.error('Health check error:', error);
-    res.status(500).json({
+    res.status(503).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
       service: 'contact-book-api',
-      error: error.message
+      error: error.message,
+      database: {
+        connected: false,
+        message: error.message
+      }
     });
   }
 });
