@@ -11,6 +11,27 @@ class Contact {
     return await ContactQueries.findById(id);
   }
   
+  // Create new contact
+  static async create(contactData) {
+    // Check for duplicate email if email is provided
+    if (contactData.email) {
+      const existingContact = await ContactQueries.findByEmail(contactData.email);
+      if (existingContact) {
+        const error = new Error('A contact with this email already exists');
+        error.code = 'DUPLICATE_EMAIL';
+        error.status = 409;
+        throw error;
+      }
+    }
+    
+    return await ContactQueries.createContact(contactData);
+  }
+  
+  // Find contact by email
+  static async findByEmail(email) {
+    return await ContactQueries.findByEmail(email);
+  }
+  
   // Get total count (for compatibility)
   static async count() {
     return await ContactQueries.count();

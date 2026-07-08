@@ -1,7 +1,10 @@
 /**
  * Validation middleware for contact data
- * NOTE: View-only operations only - no create/update/delete validation needed
  */
+
+// Regular expressions for validation
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[\d\s+\-().]*$/; // Allows empty string or valid phone characters
 
 // Validate pagination parameters
 const validatePagination = (req, res, next) => {
@@ -66,7 +69,81 @@ const validateId = (req, res, next) => {
   next();
 };
 
+// Validate contact creation data
+const validateContactCreate = (req, res, next) => {
+  const { firstName, lastName, email, phone, organization } = req.body;
+  const errors = [];
+  
+  // Validate firstName (required)
+  if (!firstName || typeof firstName !== 'string' || firstName.trim().length === 0) {
+    errors.push({ field: 'firstName', message: 'First name is required' });
+  } else if (firstName.trim().length > 100) {
+    errors.push({ field: 'firstName', message: 'First name must be 100 characters or less' });
+  }
+  
+  // Validate lastName (required)
+  if (!lastName || typeof lastName !== 'string' || lastName.trim().length === 0) {
+    errors.push({ field: 'lastName', message: 'Last name is required' });
+  } else if (lastName.trim().length > 100) {
+    errors.push({ field: 'lastName', message: 'Last name must be 100 characters or less' });
+  }
+  
+  // Validate email (optional)
+  if (email !== undefined && email !== null && email !== '') {
+    if (typeof email !== 'string') {
+      errors.push({ field: 'email', message: 'Email must be a string' });
+    } else if (email.trim().length > 255) {
+      errors.push({ field: 'email', message: 'Email must be 255 characters or less' });
+    } else if (!EMAIL_REGEX.test(email.trim())) {
+      errors.push({ field: 'email', message: 'Invalid email format' });
+    }
+  }
+  
+  // Validate phone (optional)
+  if (phone !== undefined && phone !== null && phone !== '') {
+    if (typeof phone !== 'string') {
+      errors.push({ field: 'phone', message: 'Phone must be a string' });
+    } else if (phone.trim().length > 50) {
+      errors.push({ field: 'phone', message: 'Phone must be 50 characters or less' });
+    } else if (!PHONE_REGEX.test(phone.trim())) {
+      errors.push({ field: 'phone', message: 'Phone can only contain digits, spaces, +, -, (, ), .' });
+    }
+  }
+  
+  // Validate organization (optional)
+  if (organization !== undefined && organization !== null && organization !== '') {
+    if (typeof organization !== 'string') {
+      errors.push({ field: 'organization', message: 'Organization must be a string' });
+    } else if (organization.trim().length > 255) {
+      errors.push({ field: 'organization', message: 'Organization must be 255 characters or less' });
+    }
+  }
+  
+  if (errors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid input data',
+        details: errors
+      }
+    });
+  }
+  
+  // Trim all string fields and add to request object
+  req.validatedContact = {
+    firstName: firstName ? firstName.trim() : '',
+    lastName: lastName ? lastName.trim() : '',
+    email: email ? email.trim() : null,
+    phone: phone ? phone.trim() : null,
+    organization: organization ? organization.trim() : null
+  };
+  
+  next();
+};
+
 module.exports = {
   validatePagination,
-  validateId
+  validateId,
+  validateContactCreate
 };
